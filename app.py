@@ -9,9 +9,9 @@ import time
 import mock_brain         
 import admin_dashboard    
 
-# ==========================================
+
 # 1. PAGE CONFIGURATION & VISUAL THEME
-# ==========================================
+
 st.set_page_config(page_title="NexusAgent", page_icon="🛡️", layout="wide")
 
 # --- CUSTOM CSS FOR "NEON NEBULA" BACKGROUND ---
