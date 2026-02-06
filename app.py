@@ -9,181 +9,120 @@ import time
 import mock_brain         
 import admin_dashboard    
 
-
+# ==========================================
 # 1. PAGE CONFIGURATION & VISUAL THEME
-
+# ==========================================
 st.set_page_config(page_title="NexusAgent", page_icon="🛡️", layout="wide")
 
-# --- CUSTOM CSS FOR "NEON NEBULA" BACKGROUND ---
+# --- CUSTOM CSS FOR PROFESSIONAL LOGIN UI ---
 st.markdown("""
 <style>
-    /* IMPORT TECH FONT */
-    @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;600;700&display=swap');
-
-    /* ANIMATED VIBRANT BACKGROUND */
-    @keyframes gradient-animation {
-        0% { background-position: 0% 50%; }
-        50% { background-position: 100% 50%; }
-        100% { background-position: 0% 50%; }
-    }
-
-    .stApp {
-        background: linear-gradient(-45deg, #020024, #090979, #2c003e, #00d4ff);
-        background-size: 400% 400%;
-        animation: gradient-animation 15s ease infinite;
-        font-family: 'Rajdhani', sans-serif;
-    }
+    .stApp { background-color: #0e1117; font-family: 'Segoe UI', sans-serif; }
     
-    /* GLOWING GRID OVERLAY */
-    .stApp::before {
-        content: "";
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background-image: 
-            linear-gradient(rgba(0, 242, 255, 0.03) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(0, 242, 255, 0.03) 1px, transparent 1px);
-        background-size: 30px 30px;
-        pointer-events: none;
-        z-index: 1;
-    }
-
-    /* GLASSMORPHISM CARDS */
-    div[data-testid="stStatusWidget"], .stChatMessage, section[data-testid="stSidebar"] {
-        backdrop-filter: blur(10px);
-        -webkit-backdrop-filter: blur(10px);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-    }
-
-    /* TEXT GLOW */
-    h1, h2, h3 {
-        font-family: 'Rajdhani', sans-serif;
-        text-transform: uppercase;
-        letter-spacing: 2px;
-        color: #fff !important;
-        text-shadow: 0 0 10px #00d4ff, 0 0 20px #00d4ff;
-    }
-    
-    p, label, div {
-        color: #e0e0e0 !important;
-        text-shadow: 0 0 2px rgba(0,0,0,0.8);
-    }
-
-    /* SIDEBAR STYLING */
-    section[data-testid="stSidebar"] {
-        background-color: rgba(0, 0, 0, 0.6);
-        border-right: 1px solid rgba(0, 212, 255, 0.3);
-    }
-
-    /* INPUT FIELDS - NEON BORDERS */
-    .stTextInput > div > div > input, .stSelectbox > div > div > div {
-        background-color: rgba(0, 0, 0, 0.5) !important;
-        color: #00d4ff !important;
-        border: 1px solid rgba(0, 212, 255, 0.3);
-        border-radius: 8px;
-    }
-    .stTextInput > div > div > input:focus {
-        box-shadow: 0 0 15px rgba(0, 212, 255, 0.6);
-        border-color: #00d4ff;
-    }
-
-    /* HOVER BUTTONS */
-    .stButton > button {
-        background: rgba(0, 0, 0, 0.5);
-        border: 1px solid #00d4ff;
-        color: #00d4ff;
-        font-family: 'Rajdhani', sans-serif;
-        font-weight: 700;
-        text-transform: uppercase;
-        transition: all 0.3s ease;
-    }
-    .stButton > button:hover {
-        background: #00d4ff;
-        color: #000;
-        box-shadow: 0 0 30px #00d4ff;
-        transform: scale(1.05);
-    }
-    
-    /* LOGIN CARD */
-    .login-card {
-        background: rgba(0, 0, 0, 0.7);
-        border: 1px solid #00d4ff;
+    /* LOGIN BOX */
+    .login-box {
+        background-color: #161b22;
+        border: 1px solid #30363d;
+        border-radius: 10px;
         padding: 40px;
-        border-radius: 20px;
-        box-shadow: 0 0 50px rgba(0, 212, 255, 0.3);
         text-align: center;
-        position: relative;
-        overflow: hidden;
-    }
-    
-    /* ANIMATED SCAN LINE ON LOGIN CARD */
-    .login-card::after {
-        content: "";
-        position: absolute;
-        top: 0;
-        left: -100%;
-        width: 100%;
         height: 100%;
-        background: linear-gradient(90deg, transparent, rgba(0, 212, 255, 0.2), transparent);
-        animation: scan 3s infinite;
     }
+    .login-title { color: #ffffff; font-size: 1.5em; font-weight: 600; margin-bottom: 20px; }
     
-    @keyframes scan {
-        0% { left: -100%; }
-        100% { left: 100%; }
+    /* STATUS TRACKER CARD */
+    .status-card {
+        background-color: #161b22;
+        border: 1px solid #30363d;
+        padding: 20px;
+        border-radius: 8px;
+        margin-top: 10px;
     }
-
+    .status-header { font-size: 1.2em; color: #58a6ff; font-weight: 600; margin-bottom: 5px; }
+    
 </style>
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 2. AUTHENTICATION LAYER
+# 2. AUTHENTICATION & SESSION MANAGEMENT
 # ==========================================
-def check_password():
-    """Returns `True` if the user had the correct password."""
-    if "password_correct" not in st.session_state:
-        st.session_state.password_correct = False
 
-    if st.session_state.password_correct:
-        return True
+if "auth_status" not in st.session_state:
+    st.session_state.auth_status = None 
+if "user_info" not in st.session_state:
+    st.session_state.user_info = {}
 
-    # VIBRANT LOGIN SCREEN
-    col1, col2, col3 = st.columns([1,2,1])
-    with col2:
-        st.markdown("<br><br>", unsafe_allow_html=True)
-        st.markdown(
-            """
-            <div class="login-card">
-                <h1 style="font-size: 3.5em; margin-bottom: 0;">NEXUS<span style="color:#00d4ff">AGENT</span></h1>
-                <p style="color:#00d4ff !important; letter-spacing: 6px; font-weight: bold;">SECURE OPS TERMINAL</p>
-                <div style="height: 1px; background: linear-gradient(90deg, transparent, #00d4ff, transparent); width: 80%; margin: 20px auto;"></div>
-            </div>
-            """, 
-            unsafe_allow_html=True
-        )
-        st.markdown("<br>", unsafe_allow_html=True)
+def login_page():
+    st.markdown("<br><br>", unsafe_allow_html=True)
+    st.title("🛡️ NexusAgent Portal")
+    st.markdown("Select your login method below.")
+    st.markdown("---")
+    
+    c1, c_mid, c2 = st.columns([1, 0.1, 1])
+    
+    # --- LEFT SIDE: USER LOGIN (FIXED TEXT) ---
+    with c1:
+        st.markdown("""
+        <div class="login-box">
+            <div class="login-title">User Login</div>
+            <p style="color:#8b949e; font-size: 0.9em;">Report issues and track tickets.</p>
+        </div>
+        """, unsafe_allow_html=True)
         
-        password = st.text_input("ENTER ACCESS CODE", type="password")
-        
-        if st.button("INITIALIZE SYSTEM", use_container_width=True):
-            if password == "nexus123":
-                with st.spinner("🚀 INITIATING SECURE HANDSHAKE..."):
-                    time.sleep(1.5)
-                st.session_state.password_correct = True
+        with st.container():
+            st.markdown("<br>", unsafe_allow_html=True)
+            if st.button("🔵 Continue with Google", use_container_width=True):
+                with st.spinner("Connecting..."):
+                    time.sleep(1.0)
+                st.session_state.auth_status = "User"
+                st.session_state.user_info = {"email": "user@gmail.com", "role": "User"}
                 st.rerun()
-            else:
-                st.error("❌ ACCESS DENIED")
-    return False
+                
+            if st.button("📧 Continue with Email", use_container_width=True):
+                st.session_state.auth_status = "User"
+                st.session_state.user_info = {"email": "user@email.com", "role": "User"}
+                st.rerun()
+                
+            if st.button("📱 Continue with Phone", use_container_width=True):
+                st.session_state.auth_status = "User"
+                st.session_state.user_info = {"email": "+91 98765 XXXXX", "role": "User"}
+                st.rerun()
 
-if not check_password():
+    # --- MIDDLE: DIVIDER ---
+    with c_mid:
+        st.markdown("""<div style="border-left: 1px solid #333; height: 350px; margin: auto;"></div>""", unsafe_allow_html=True)
+
+    # --- RIGHT SIDE: OPERATOR LOGIN ---
+    with c2:
+        st.markdown("""
+        <div class="login-box">
+            <div class="login-title">Operator Access</div>
+            <p style="color:#8b949e; font-size: 0.9em;">System Admin & Command Center.</p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        with st.container():
+            st.markdown("<br>", unsafe_allow_html=True)
+            password = st.text_input("Enter Access Code", type="password")
+            
+            if st.button("🚀 Launch Command Center", use_container_width=True, type="primary"):
+                if password == "nexus123":
+                    with st.spinner("Verifying Credentials..."):
+                        time.sleep(1.0)
+                    st.session_state.auth_status = "Admin"
+                    st.session_state.user_info = {"email": "admin@nexus.corp", "role": "Operator"}
+                    st.rerun()
+                else:
+                    st.error("Invalid Access Code")
+
+if st.session_state.auth_status is None:
+    login_page()
     st.stop()
 
 # ==========================================
 # 3. CORE LOGIC
 # ==========================================
+
 CSV_FILE = 'ticket_db.csv'
 
 def save_ticket_to_csv(ticket_data):
@@ -216,139 +155,204 @@ def get_active_incidents_context():
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 
-# --- SIDEBAR ---
+# ==========================================
+# 4. CONDITIONAL UI BASED ON ROLE
+# ==========================================
+
 with st.sidebar:
-    st.markdown("## ⚙️ SYSTEM CONTROLS")
-    input_channel = st.selectbox("SOURCE FEED", ["Web Portal", "Email", "WhatsApp", "Slack", "Voice"])
-    st.markdown("---")
-    user_contact = st.text_input("OPERATOR ID", value="admin@nexus.corp")
-    api_key = st.text_input("GEMINI KEY", type="password")
-    st.markdown("---")
-    if st.button("🗑️ FLUSH DATABASE"):
-        if os.path.exists(CSV_FILE): os.remove(CSV_FILE)
+    st.title("NexusAgent")
+    role_color = "green" if st.session_state.auth_status == "Admin" else "blue"
+    st.caption(f"Logged in as: :{role_color}[{st.session_state.user_info['role']}]")
+    st.write(f"👤 {st.session_state.user_info['email']}")
+    
+    st.divider()
+    
+    # ADMIN ONLY CONTROLS
+    api_key = None
+    input_channel = "Web Portal" 
+    
+    if st.session_state.auth_status == "Admin":
+        st.subheader("🛠️ Admin Controls")
+        input_channel = st.selectbox("Simulate Channel", ["Web Portal", "Email", "WhatsApp", "Slack"])
+        api_key = st.text_input("Gemini API Key", type="password")
+        
+        if st.button("🗑️ Reset DB"):
+            if os.path.exists(CSV_FILE): os.remove(CSV_FILE)
+            st.session_state.chat_history = []
+            st.rerun()
+    else:
+        st.info("Connected to Helpdesk")
+        
+    st.divider()
+    if st.button("🔒 Logout"):
+        st.session_state.auth_status = None
         st.session_state.chat_history = []
         st.rerun()
-    if st.button("🔒 TERMINATE SESSION"):
-        st.session_state.password_correct = False
-        st.rerun()
-            
-    st.markdown(
-        """
-        <div style="margin-top: 50px; text-align: center; color: #555;">
-            STATUS: <span style="color: #00d4ff; text-shadow: 0 0 10px #00d4ff;">ONLINE</span>
-        </div>
-        """, unsafe_allow_html=True
-    )
 
-# --- TABS ---
-tab1, tab2 = st.tabs(["💬 TRIAGE CONSOLE", "📊 COMMAND CENTER"])
+# --- MAIN AREA ROUTING ---
 
-with tab1:
-    st.markdown("### 📡 LIVE TRANSMISSION FEED")
-    chat_container = st.container()
-    with chat_container:
+if st.session_state.auth_status == "User":
+    # ==========================
+    # USER VIEW: CHAT + TRACKER
+    # ==========================
+    st.title("👋 User Support Portal")
+    
+    # User Tabs
+    u_tab1, u_tab2 = st.tabs(["💬 Report Issue", "🔍 Track Status"])
+    
+    with u_tab1:
+        st.markdown("### Chat with NexusAgent")
         for msg in st.session_state.chat_history:
             with st.chat_message(msg["role"]):
                 st.write(msg["content"])
 
-    user_input = st.chat_input("Input ticket parameters...")
+        user_input = st.chat_input("Ex: My laptop screen is flickering...")
+        
+        if user_input:
+            st.session_state.chat_history.append({"role": "user", "content": user_input})
+            with st.chat_message("user"):
+                st.write(user_input)
+            # Logic trigger happens at bottom of file
 
-    if user_input:
-        st.session_state.chat_history.append({"role": "user", "content": user_input})
-        with st.chat_message("user"):
-            st.write(user_input)
-
-        text_response = ""
-        try:
-            if api_key:
+    with u_tab2:
+        st.markdown("### 🎫 Ticket Status Tracker")
+        search_id = st.text_input("Enter Ticket ID (e.g. TKT-A1B2C3)")
+        
+        if st.button("Track Ticket"):
+            if os.path.exists(CSV_FILE):
                 try:
-                    genai.configure(api_key=api_key)
-                    model = genai.GenerativeModel("gemini-2.0-flash-lite-001")
-                    active_incidents = get_active_incidents_context()
+                    df = pd.read_csv(CSV_FILE)
+                    # Filter for the ID (case insensitive search)
+                    ticket = df[df['ticket_id'].str.contains(search_id.upper().strip(), na=False)]
                     
-                    system_prompt = f"""
-                    You are NexusAgent. The user is contacting via **{input_channel}**.
-                    
-                    ### INPUT DATA:
-                    1. COMPLAINT: "{user_input}"
-                    2. ACTIVE INCIDENTS: {active_incidents}
+                    if not ticket.empty:
+                        # Get the first match
+                        row = ticket.iloc[0]
+                        dept = row['department']
+                        status = row['status']
+                        urgency = row['urgency']
+                        
+                        # DYNAMIC STATUS CARD
+                        st.markdown(f"""
+                        <div class="status-card">
+                            <div class="status-header">✅ Ticket Found: {row['ticket_id']}</div>
+                            <hr style="border-color: #30363d;">
+                            <p><strong>Current Status:</strong> <span style="color: #00ff00;">{status}</span></p>
+                            <p><strong>Assigned To:</strong> {dept} Team</p>
+                            <p><strong>Priority Level:</strong> {urgency}</p>
+                            <br>
+                            <p style="background-color: #21262d; padding: 10px; border-radius: 5px;">
+                                🚀 <strong>Update:</strong> This ticket has been successfully handed over to the 
+                                <strong>{dept}</strong> engineering team. A specialist is reviewing the diagnostics 
+                                and will resolve it soon.
+                            </p>
+                        </div>
+                        """, unsafe_allow_html=True)
+                    else:
+                        st.error("❌ Ticket ID not found. Please check and try again.")
+                except Exception as e:
+                    st.error(f"Error reading database: {e}")
+            else:
+                st.warning("No tickets in the database yet.")
 
-                    ### URGENCY RULES (STRICT):
-                    - CRITICAL: Fire, Smoke, Sparks, Security Breach.
-                    - HIGH: Hardware Crash, Blue Screen, Broken Screen, Device Not Working, System Failure, Dead Laptop.
-                    - MEDIUM: WiFi, WhatsApp, Slack, Zoom, Slow Apps, Internet Connection.
-                    - LOW: Password Reset, Information Request, "How do I", Feature Request.
+elif st.session_state.auth_status == "Admin":
+    # ==========================
+    # ADMIN VIEW: FULL DASHBOARD
+    # ==========================
+    tab1, tab2 = st.tabs(["💬 Triage Console", "📊 Command Center"])
+    
+    with tab1:
+        st.subheader(f"Incoming Feed: {input_channel}")
+        for msg in st.session_state.chat_history:
+            with st.chat_message(msg["role"]):
+                st.write(msg["content"])
+        user_input = st.chat_input("Simulate incoming ticket...")
+        
+    with tab2:
+        admin_dashboard.render_admin_dashboard()
 
-                    ### OUTPUT JSON:
-                    {{
-                        "is_duplicate": true/false,
-                        "department": "Hardware" | "Network" | "Software" | "Access" | "General",
-                        "urgency": "Critical" | "High" | "Medium" | "Low",
-                        "summary": "Technical Title",
-                        "rca_hypothesis": "Technical Guess",
-                        "response": "Reply to user (Context aware)",
-                        "slack_draft": "Ops Alert",
-                        "sentiment": "Neutral" | "Angry" | "Panic"
-                    }}
-                    """
 
-                    with st.spinner("🧠 NEURAL NETWORK ANALYZING..."):
-                        response = model.generate_content(system_prompt)
-                        text_response = response.text
-                except: raise Exception("Google API Failed")
-            else: raise Exception("No API Key")
+# ==========================================
+# 5. SHARED AI PROCESSING LOGIC
+# ==========================================
 
-        except Exception:
-            with st.spinner("⚠️ ROUTING TO BACKUP NODE..."):
-                local_model = mock_brain.MockModel("local")
-                response = local_model.generate_content(user_input)
-                text_response = response.text
-                st.toast("OFFLINE MODE ENGAGED", icon="🛡️")
-
-        try:
-            clean_text = text_response.strip().replace("```json", "").replace("```", "")
-            data = json.loads(clean_text)
-            
-            data["ticket_id"] = f"TKT-{str(uuid.uuid4())[:6].upper()}"
-            data["timestamp"] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            data["channel"] = input_channel 
-            data["user_contact"] = user_contact
-            data["raw_issue"] = user_input
-            data["status"] = "Open"
-            
-            save_ticket_to_csv(data)
-            
-            st.session_state.chat_history.append({"role": "assistant", "content": data['response']})
-            with st.chat_message("assistant"):
-                st.write(data['response'])
+if 'user_input' in locals() and user_input:
+    
+    text_response = ""
+    try:
+        if api_key: 
+            try:
+                genai.configure(api_key=api_key)
+                model = genai.GenerativeModel("gemini-2.0-flash-lite-001")
+                active_incidents = get_active_incidents_context()
                 
-                with st.status("🔍 ANALYSIS COMPLETE", expanded=True):
-                    c1, c2 = st.columns(2)
-                    c1.markdown(f"**SOURCE:** `{data['channel']}`") 
-                    c1.markdown(f"**ID:** `{data['ticket_id']}`")
-                    
-                    urgency = data.get('urgency', 'Low')
-                    color = "green"
-                    if urgency == "Critical": color = "red"
-                    elif urgency == "High": color = "orange"
-                    elif urgency == "Medium": color = "yellow"
-                    
-                    c1.markdown(f"**URGENCY:** :{color}[{urgency.upper()}]")
-                    
-                    if data.get('is_duplicate'): 
-                        c2.error("⚠️ DUPLICATE DETECTED")
-                    else: 
-                        c2.success("✅ NEW INCIDENT")
-                    
-                    st.divider()
-                    st.markdown(f"**🧐 RCA HYPOTHESIS:**")
-                    st.info(f"{data.get('rca_hypothesis', 'Analyzing...')}")
-                    
-                    st.markdown("**📢 OPS DRAFT:**")
-                    st.code(f"{data.get('slack_draft', 'No draft needed')}", language="bash")
+                system_prompt = f"""
+                You are NexusAgent. Context: {input_channel}.
+                Input: "{user_input}"
+                Active Incidents: {active_incidents}
                 
-        except Exception as e:
-            st.error(f"Error processing ticket: {e}")
+                RULES:
+                - CRITICAL: Fire, Smoke, Security.
+                - HIGH: Hardware Crash, Broken.
+                - MEDIUM: Software, WiFi, Apps.
+                - LOW: Info, Password.
+                
+                OUTPUT JSON:
+                {{
+                    "is_duplicate": boolean,
+                    "department": "Hardware"|"Network"|"Support",
+                    "urgency": "Critical"|"High"|"Medium"|"Low",
+                    "summary": "Title",
+                    "rca_hypothesis": "Guess",
+                    "response": "Polite reply",
+                    "slack_draft": "Ops alert"
+                }}
+                """
+                with st.spinner("Analyzing..."):
+                    response = model.generate_content(system_prompt)
+                    text_response = response.text
+            except: raise Exception("API Error")
+        else:
+             raise Exception("No Key")
 
-with tab2:
-    admin_dashboard.render_admin_dashboard()
+    except Exception:
+        # Fallback
+        local_model = mock_brain.MockModel("local")
+        response = local_model.generate_content(user_input)
+        text_response = response.text
+        if st.session_state.auth_status == "Admin":
+            st.toast("Using Local Brain", icon="🧠")
+
+    try:
+        clean_text = text_response.strip().replace("```json", "").replace("```", "")
+        data = json.loads(clean_text)
+        
+        data["ticket_id"] = f"TKT-{str(uuid.uuid4())[:6].upper()}"
+        data["timestamp"] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        data["channel"] = input_channel
+        data["user_contact"] = st.session_state.user_info.get('email', 'guest@nexus.corp')
+        data["raw_issue"] = user_input
+        data["status"] = "Open"
+        
+        save_ticket_to_csv(data)
+        
+        st.session_state.chat_history.append({"role": "assistant", "content": data['response']})
+        
+        # Admin View
+        if st.session_state.auth_status == "Admin":
+            with tab1:
+                 with st.chat_message("assistant"):
+                    st.write(data['response'])
+                    with st.status("Analysis", expanded=True):
+                        st.write(f"**ID:** {data['ticket_id']}")
+                        st.write(f"**Urgency:** {data['urgency']}")
+                        st.code(data['slack_draft'])
+        else:
+            # User View (Write to the Report Issue Tab)
+             with u_tab1: 
+                 with st.chat_message("assistant"):
+                    st.write(data['response'])
+                    st.success(f"Ticket **{data['ticket_id']}** created. You can track it in the 'Track Status' tab.")
+                
+    except Exception as e:
+        st.error(f"Error: {e}")
