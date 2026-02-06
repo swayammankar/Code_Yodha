@@ -6,7 +6,7 @@ import altair as alt
 import time
 
 def render_admin_dashboard():
-    # PROFESSIONAL DASHBOARD STYLING
+    # --- ENTERPRISE STYLING ---
     st.markdown("""
     <style>
         .metric-card {
@@ -16,158 +16,140 @@ def render_admin_dashboard():
             padding: 20px;
             box-shadow: 0 1px 3px rgba(0,0,0,0.12);
         }
-        .metric-label {
-            font-size: 0.9em;
-            color: #8b949e;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-        .metric-value {
-            font-size: 2em;
-            font-weight: 600;
-            color: #ffffff;
-            margin-top: 5px;
-        }
-        .critical-value {
-            color: #f85149; /* Enterprise Red */
+        .action-box {
+            background-color: #0d1117;
+            border: 1px solid #30363d;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 10px;
         }
     </style>
     """, unsafe_allow_html=True)
 
-    # HEADER
-    st.title("Command Center")
-    st.markdown("### Operational Metrics & Analytics")
-    st.divider()
-
-    # DATA LOADING
+    st.title("🛡️ Agent Action Terminal")
+    
+    # LOAD DATA
     current_dir = os.path.dirname(os.path.abspath(__file__))
     file_path = os.path.join(current_dir, 'ticket_db.csv')
-    df = pd.DataFrame()
-    try: df = pd.read_csv(file_path)
-    except FileNotFoundError: pass
-
-    # SIDEBAR FILTERS (Moved to main page for dashboard focus)
-    col_filter, col_refresh = st.columns([5, 1])
-    with col_filter:
-        all_status = ["All Statuses"]
-        if not df.empty and 'status' in df.columns: all_status += list(df['status'].unique())
-        selected_status = st.selectbox("", all_status, label_visibility="collapsed")
     
-    with col_refresh:
-        if st.button("🔄 Refresh"): st.rerun()
+    if not os.path.exists(file_path):
+        st.info("Waiting for tickets...")
+        return
 
-    filtered_df = df if selected_status == "All Statuses" else df[df['status'] == selected_status]
+    df = pd.read_csv(file_path)
 
-    # --- METRICS ROW ---
+    # --- METRICS ---
     total = len(df)
-    high = len(df[df['urgency'].isin(['High', 'Critical'])]) if not df.empty else 0
-    open_t = len(df[df['status'] == 'Open']) if not df.empty else 0
-    
-    high_color_class = "critical-value" if high > 0 else ""
+    critical = len(df[df['urgency'] == 'Critical'])
+    open_t = len(df[df['status'] == 'Open'])
+    solved = len(df[df['status'] == 'Resolved'])
 
-    c1, c2, c3 = st.columns(3)
+    m1, m2, m3, m4 = st.columns(4)
+    m1.metric("Total Tickets", total)
+    m2.metric("Critical Alerts", critical, delta_color="inverse")
+    m3.metric("Pending Queue", open_t)
+    m4.metric("Resolved", solved)
     
-    with c1:
-        st.markdown(f"""
-        <div class="metric-card">
-            <div class="metric-label">Total Volume</div>
-            <div class="metric-value">{total}</div>
-        </div>
-        """, unsafe_allow_html=True)
+    st.divider()
+
+    # =========================================================
+    # TABS
+    # =========================================================
+    
+    tab_queue, tab_work, tab_db = st.tabs(["📥 New Queue & Analytics", "🛠️ My Workspace", "💾 Database"])
+
+    # --- TAB 1: QUEUE + ANALYTICS (RESTORED GRAPHS) ---
+    with tab_queue:
+        st.markdown("#### 🚨 Unassigned Tickets")
+        open_tickets = df[df['status'] == 'Open']
         
-    with c2:
-        st.markdown(f"""
-        <div class="metric-card">
-            <div class="metric-label">Critical Incidents</div>
-            <div class="metric-value {high_color_class}">{high}</div>
-        </div>
-        """, unsafe_allow_html=True)
+        if not open_tickets.empty:
+            st.dataframe(open_tickets[['ticket_id', 'urgency', 'department', 'summary', 'timestamp']], use_container_width=True, hide_index=True)
+            
+            c1, c2 = st.columns([3, 1])
+            with c1:
+                ticket_to_claim = st.selectbox("Select Ticket to Claim:", open_tickets['ticket_id'].unique(), key="claim_select")
+            with c2:
+                st.write("")
+                st.write("")
+                if st.button("🙋‍♂️ Claim Ticket", use_container_width=True, type="primary"):
+                    df.loc[df['ticket_id'] == ticket_to_claim, 'status'] = 'In Progress'
+                    df.to_csv(file_path, index=False)
+                    st.toast(f"Ticket {ticket_to_claim} Locked!", icon="🔒")
+                    time.sleep(1)
+                    st.rerun()
+        else:
+            st.success("🎉 Queue is empty!")
 
-    with c3:
-        st.markdown(f"""
-        <div class="metric-card">
-            <div class="metric-label">Open Tickets</div>
-            <div class="metric-value">{open_t}</div>
-        </div>
-        """, unsafe_allow_html=True)
-
-    st.markdown("<br>", unsafe_allow_html=True)
-
-    # TABLE & EXPORT
-    st.markdown("### Ticket Database")
-    
-    col_dl, col_spacer = st.columns([1, 5])
-    with col_dl:
-        timestamp = datetime.datetime.now().strftime("%Y-%m-%d")
-        csv = df.to_csv(index=False).encode('utf-8') if not df.empty else b""
-        st.download_button("📥 Export CSV", csv, f"nexus_report_{timestamp}.csv", "text/csv")
-
-    def highlight_high(val):
-        if val == 'Critical': return 'background-color: #3e1f1f; color: #ff7b72'
-        if val == 'High': return 'background-color: #3e2c1f; color: #d29922'
-        return ''
-
-    if not filtered_df.empty:
-        st.dataframe(
-            filtered_df.style.map(highlight_high, subset=['urgency']), 
-            use_container_width=True,
-            height=300
-        )
-
-    # AUTONOMOUS PROTOCOLS
-    st.divider()
-    st.markdown("### Autonomous Protocols")
-    
-    ca, cb = st.columns(2)
-    with ca:
-        if st.button("🛠️ Execute Auto-Heal Sequence", use_container_width=True):
-            with st.status("Running Auto-Heal...", expanded=True) as status:
-                st.write("🔍 Diagnosing Root Cause...")
-                time.sleep(1)
-                st.write("♻️ Restarting Microservices...")
-                time.sleep(1)
-                st.write("✅ Verifying System Stability...")
-                status.update(label="Auto-Heal Complete", state="complete", expanded=False)
-            st.success("System Restored: 3 Incidents Resolved.")
-
-    with cb:
-        if st.button("📢 Broadcast Critical Alert", use_container_width=True):
-            st.warning("⚠️ Critical Alert sent to Operations Channel.")
-
-    # ANALYTICS
-    st.divider()
-    st.markdown("### Performance Analytics")
-    cc1, cc2 = st.columns(2)
-    
-    # 1. DEPARTMENT CHART
-    with cc1:
-        st.caption("Incidents by Department")
-        if not df.empty and 'department' in df.columns:
+        # --- RESTORED ANALYTICS CHARTS ---
+        st.markdown("---")
+        st.subheader("📊 Live Analytics")
+        g1, g2 = st.columns(2)
+        
+        with g1:
+            st.caption("Incidents by Department")
             dept_counts = df['department'].value_counts().reset_index()
             dept_counts.columns = ['department', 'count']
-            
-            chart = alt.Chart(dept_counts).mark_bar().encode(
+            chart1 = alt.Chart(dept_counts).mark_bar().encode(
                 x=alt.X('department', title=None),
-                y=alt.Y('count', axis=alt.Axis(tickMinStep=1), title='Volume'),
-                color=alt.value('#58a6ff'), # Enterprise Blue
-                tooltip=['department', 'count']
-            ).properties(height=300).interactive()
-            st.altair_chart(chart, use_container_width=True)
+                y=alt.Y('count', axis=alt.Axis(tickMinStep=1)),
+                color=alt.value('#58a6ff')
+            ).interactive()
+            st.altair_chart(chart1, use_container_width=True)
             
-    # 2. URGENCY CHART
-    with cc2:
-        st.caption("Incidents by Severity")
-        if not df.empty and 'urgency' in df.columns:
-            urgency_counts = df['urgency'].value_counts().reset_index()
-            urgency_counts.columns = ['urgency', 'count']
-            
+        with g2:
+            st.caption("Incidents by Urgency")
+            urg_counts = df['urgency'].value_counts().reset_index()
+            urg_counts.columns = ['urgency', 'count']
             domain = ["Low", "Medium", "High", "Critical"]
-            range_ = ["#238636", "#d29922", "#f85149", "#da3633"] # Green, Yellow, Red, Deep Red
-            
-            chart = alt.Chart(urgency_counts).mark_bar().encode(
+            range_ = ["#238636", "#d29922", "#f85149", "#da3633"] 
+            chart2 = alt.Chart(urg_counts).mark_bar().encode(
                 x=alt.X('urgency', sort=domain, title=None),
-                y=alt.Y('count', axis=alt.Axis(tickMinStep=1), title='Volume'),
-                color=alt.Color('urgency', scale=alt.Scale(domain=domain, range=range_), legend=None),
-                tooltip=['urgency', 'count']
-            ).properties(height=300).interactive()
-            st.altair_chart(chart, use_container_width=True)
+                y=alt.Y('count', axis=alt.Axis(tickMinStep=1)),
+                color=alt.Color('urgency', scale=alt.Scale(domain=domain, range=range_), legend=None)
+            ).interactive()
+            st.altair_chart(chart2, use_container_width=True)
+
+
+    # --- TAB 2: WORKSPACE (Resolve/Transfer) ---
+    with tab_work:
+        st.markdown("#### 🔨 My Active Tickets")
+        my_tickets = df[df['status'] == 'In Progress']
+        
+        if not my_tickets.empty:
+            st.dataframe(my_tickets[['ticket_id', 'department', 'summary', 'rca_hypothesis']], use_container_width=True, hide_index=True)
+            
+            st.markdown("---")
+            ticket_action_id = st.selectbox("Select Active Ticket:", my_tickets['ticket_id'].unique(), key="work_select")
+            
+            col_a, col_b = st.columns(2)
+            
+            # RESOLVE
+            with col_a:
+                st.markdown("""<div class="action-box">✅ <b>Resolution</b></div>""", unsafe_allow_html=True)
+                if st.button("Mark as Resolved", use_container_width=True):
+                    df.loc[df['ticket_id'] == ticket_action_id, 'status'] = 'Resolved'
+                    df.to_csv(file_path, index=False)
+                    st.balloons()
+                    st.success(f"Ticket {ticket_action_id} Closed!")
+                    time.sleep(1.5)
+                    st.rerun()
+
+            # TRANSFER
+            with col_b:
+                st.markdown("""<div class="action-box">⇄ <b>Transfer Department</b></div>""", unsafe_allow_html=True)
+                new_dept = st.selectbox("Move to:", ["Hardware", "Software", "Network", "Access"], label_visibility="collapsed")
+                if st.button("Transfer Ticket"):
+                    df.loc[df['ticket_id'] == ticket_action_id, 'department'] = new_dept
+                    df.loc[df['ticket_id'] == ticket_action_id, 'status'] = 'Open' 
+                    df.to_csv(file_path, index=False)
+                    st.info(f"Transferred to {new_dept}.")
+                    time.sleep(1.5)
+                    st.rerun()
+
+        else:
+            st.info("No active tickets. Claim one from the Queue!")
+
+    # --- TAB 3: DATABASE ---
+    with tab_db:
+        st.dataframe(df, use_container_width=True)
