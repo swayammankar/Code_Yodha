@@ -1,0 +1,58 @@
+/* style.css - FORCE Light Theme */
+
+/* 1. FORCE TEXT VISIBILITY */
+html, body, [class*="css"], .stMarkdown, h1, h2, h3, p, span, div {
+    font-family: 'Inter', sans-serif;
+    color: #1A1A1A !important; /* Force Black Text */
+}
+
+/* 2. BACKGROUNDS */
+[data-testid="stAppViewContainer"] {
+    background-color: #F9F8F4 !important;
+}
+
+section[data-testid="stSidebar"] {
+    background-color: #F0EFE9 !important;
+}
+
+/* 3. METRIC CARDS */
+div[data-testid="stMetric"] {
+    background-color: #FFFFFF !important;
+    border: 1px solid #E5E5E5;
+    border-radius: 12px;
+    padding: 24px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.02);
+}
+
+/* Label specific coloring */
+div[data-testid="stMetricLabel"] p {
+    color: #555 !important; /* Dark Grey for labels */
+}
+
+div[data-testid="stMetricValue"] div {
+    color: #1A1A1A !important; /* Black for numbers */
+}
+
+/* 4. REMOVE CLUTTER */
+#MainMenu {visibility: hidden;}
+footer {visibility: hidden;}
+header {visibility: hidden;}
+
+/* 5. BUTTONS */
+button[kind="primary"] {
+    background-color: #5E6AD2 !important;
+    color: white !important;
+    border-radius: 50px;
+    border: none;
+}
+
+div[data-testid="stDownloadButton"] button {
+    background-color: transparent !important;
+    color: #1A1A1A !important;
+    border: 1px solid #1A1A1A !important;
+    border-radius: 50px;
+}
+div[data-testid="stDownloadButton"] button:hover {
+    background-color: #1A1A1A !important;
+    color: #FFFFFF !important;
+}
