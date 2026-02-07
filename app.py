@@ -7,8 +7,12 @@ import os
 import uuid 
 import time
 from PIL import Image 
+from dotenv import load_dotenv # AUTO-LOADS KEY FROM .env FILE
 import mock_brain         
 import admin_dashboard    
+
+# LOAD ENVIRONMENT VARIABLES
+load_dotenv() 
 
 # ==========================================
 # 1. PAGE CONFIGURATION & VISUAL THEME
@@ -35,6 +39,44 @@ st.markdown("""
         border-radius: 8px;
         margin-top: 10px;
     }
+    
+    /* LISTENING POPUP ANIMATION */
+    @keyframes pulse-red {
+        0% { transform: translate(-50%, -50%) scale(1); box-shadow: 0 0 0 0 rgba(255, 75, 75, 0.7); }
+        70% { transform: translate(-50%, -50%) scale(1.1); box-shadow: 0 0 0 20px rgba(255, 75, 75, 0); }
+        100% { transform: translate(-50%, -50%) scale(1); box-shadow: 0 0 0 0 rgba(255, 75, 75, 0); }
+    }
+    
+    .listening-overlay {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 120px;
+        height: 120px;
+        background-color: #ff4b4b;
+        border-radius: 50%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        z-index: 99999;
+        animation: pulse-red 1.5s infinite;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        border: 4px solid white;
+    }
+    
+    .listening-icon {
+        font-size: 50px;
+        color: white;
+    }
+    .listening-text {
+        color: white;
+        font-size: 12px;
+        font-weight: bold;
+        margin-top: 5px;
+    }
+
 </style>
 """, unsafe_allow_html=True)
 
@@ -132,25 +174,39 @@ if "chat_history" not in st.session_state: st.session_state.chat_history = []
 # 4. CONDITIONAL UI ROUTING
 # ==========================================
 
+# GET API KEY FROM ENVIRONMENT
+api_key = os.getenv("GEMINI_API_KEY")
+
 with st.sidebar:
     st.title("NexusAgent")
     role_color = "green" if st.session_state.auth_status == "Admin" else "blue"
     st.caption(f"Logged in as: :{role_color}[{st.session_state.user_info['role']}]")
     st.write(f"👤 {st.session_state.user_info['email']}")
+    
     st.divider()
     
-    api_key = None
+    # --- STATUS INDICATOR ---
+    if api_key:
+        st.success("✅ System Online (API Connected)")
+    else:
+        st.warning("⚠️ Simulation Mode Active")
+        if st.session_state.auth_status == "Admin":
+            st.caption("Tip: Add GEMINI_API_KEY to .env file")
+            
+    st.divider()
+    
     input_channel = "Web Portal" 
     
     if st.session_state.auth_status == "Admin":
-        st.subheader("🛠️ Simulation Controls")
-        input_channel = st.selectbox("Channel Source", ["Web Portal", "Email", "WhatsApp", "Slack"])
-        api_key = st.text_input("Gemini API Key", type="password")
-        if st.button("🗑️ Reset Database"):
+        st.subheader("🛠️ Admin Controls")
+        input_channel = st.selectbox("Simulate Channel Source", ["Web Portal", "Email", "WhatsApp", "Slack"])
+        
+        st.write("") 
+        if st.button("🗑️ Clear Database"):
             if os.path.exists(CSV_FILE): os.remove(CSV_FILE)
             st.session_state.chat_history = []
             st.rerun()
-    else: st.info("Connected to Helpdesk")
+    else: st.info("Connected to Corporate Helpdesk")
         
     st.divider()
     if st.button("🔒 Logout"):
@@ -171,6 +227,7 @@ if st.session_state.auth_status == "User":
         for msg in st.session_state.chat_history:
             with st.chat_message(msg["role"]): 
                 st.write(msg["content"])
+                # Render Detailed Logic if available
                 if "details" in msg:
                     with st.status("Ticket Intelligence Log", expanded=False):
                         st.write(f"**ID:** `{msg['details']['ticket_id']}`")
@@ -181,11 +238,22 @@ if st.session_state.auth_status == "User":
         # DEMO CONTROLS (Voice & Image)
         c_voice, c_upload, c_space = st.columns([1,1,3])
         with c_voice:
+            # === THE PULSING ANIMATION LOGIC ===
             if st.button("🎤 Voice Note"):
-                with st.spinner("Listening..."):
-                    time.sleep(1.5)
-                    voice_simulation = True
+                popup = st.empty()
+                popup.markdown("""
+                    <div class="listening-overlay">
+                        <div class="listening-icon">🎙️</div>
+                        <div class="listening-text">Listening...</div>
+                    </div>
+                """, unsafe_allow_html=True)
+                
+                time.sleep(5.0) # 5 Seconds Wait
+                popup.empty()   # Disappear
+                
+                voice_simulation = True
                 st.toast("Transcribed!", icon="✅")
+                
         with c_upload:
             uploaded_file = st.file_uploader("📎 Attach", type=['png','jpg'], label_visibility="collapsed")
             if uploaded_file:
@@ -252,34 +320,60 @@ if 'user_input' in locals() and user_input:
     used_simulation = False
 
     try:
+        # CHECK IF API KEY EXISTS IN ENV
         if api_key:
             genai.configure(api_key=api_key)
             model = genai.GenerativeModel("gemini-2.0-flash-lite-001")
             
+            # === THE STRICT BRAIN (REAL API) ===
             prompt = f"""
-            Act as IT Agent. Input: "{user_input}".
-            If image attached, analyze it.
-            Output JSON: {{
+            You are NexusAgent, an elite IT Incident Commander.
+            
+            ### INPUT ANALYSIS
+            User Input: "{user_input}"
+            Context: The user is an employee reporting an issue.
+            
+            ### STRICT URGENCY RULES (FOLLOW THESE):
+            1. **CRITICAL** (Red Alert): 
+               - Safety hazards (Fire, Smoke, Sparks).
+               - Security breaches (Hacked, Ransomware).
+               - Total System Failure (Server Room down, ERP offline).
+            2. **HIGH** (Urgent):
+               - Hardware Failure preventing work (Laptop crash, Blue Screen, Broken Screen, Won't Turn On).
+               - Key software not opening (Zoom, Office, Login failed).
+            3. **MEDIUM** (Normal):
+               - WiFi slow, Printer jammed, VPN disconnecting.
+               - Single app glitching but usable.
+            4. **LOW** (Backlog):
+               - Password reset, Access request, "How do I..." questions.
+               - Feature requests or generic feedback.
+
+            ### SENTIMENT ANALYSIS:
+            - Detect if user is "Panic", "Angry", "Frustrated", or "Neutral".
+
+            ### OUTPUT FORMAT (JSON ONLY):
+            {{
                 "is_duplicate": false,
-                "department": "Hardware"|"Software",
-                "urgency": "High"|"Low",
-                "summary": "Title",
-                "rca_hypothesis": "Analysis",
-                "response": "User reply",
-                "slack_draft": "Ops alert",
-                "sentiment": "Neutral"|"Panic",
+                "department": "Hardware" | "Software" | "Network" | "Access" | "General",
+                "urgency": "Critical" | "High" | "Medium" | "Low",
+                "summary": "Short Technical Title (Max 6 words)",
+                "rca_hypothesis": "One sentence technical guess on root cause.",
+                "response": "Empathetic professional reply to the user (max 1 sentence).",
+                "slack_draft": "🚨 [URGENCY] [DEPT]: [Summary] - [RCA]",
+                "sentiment": "Neutral" | "Panic" | "Angry",
                 "status": "Open"
             }}
             """
             
-            with st.spinner("AI Analyzing..."):
+            with st.spinner("⚡ NexusAgent is analyzing your request..."):
                 if uploaded_img: response = model.generate_content([prompt, uploaded_img])
                 else: response = model.generate_content(prompt)
                 text_response = response.text
 
-        else: raise Exception("No Key")
+        else: raise Exception("No Key in .env")
     
     except Exception as e:
+        # === THE SMART FALLBACK (SIMULATION) ===
         used_simulation = True
         user_input_lower = user_input.lower()
         
