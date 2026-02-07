@@ -53,12 +53,12 @@ def render_admin_dashboard():
     st.divider()
 
     # =========================================================
-    # TABS
+    # TABS (Updated with "Resolved History")
     # =========================================================
     
-    tab_queue, tab_work, tab_db = st.tabs(["📥 New Queue & Analytics", "🛠️ My Workspace", "💾 Database"])
+    tab_queue, tab_work, tab_history, tab_db = st.tabs(["📥 New Queue", "🛠️ My Workspace", "✅ Resolved History", "💾 Database"])
 
-    # --- TAB 1: QUEUE + ANALYTICS (RESTORED GRAPHS) ---
+    # --- TAB 1: QUEUE + ANALYTICS ---
     with tab_queue:
         st.markdown("#### 🚨 Unassigned Tickets")
         open_tickets = df[df['status'] == 'Open']
@@ -81,37 +81,39 @@ def render_admin_dashboard():
         else:
             st.success("🎉 Queue is empty!")
 
-        # --- RESTORED ANALYTICS CHARTS ---
+        # ANALYTICS CHARTS
         st.markdown("---")
         st.subheader("📊 Live Analytics")
         g1, g2 = st.columns(2)
         
         with g1:
             st.caption("Incidents by Department")
-            dept_counts = df['department'].value_counts().reset_index()
-            dept_counts.columns = ['department', 'count']
-            chart1 = alt.Chart(dept_counts).mark_bar().encode(
-                x=alt.X('department', title=None),
-                y=alt.Y('count', axis=alt.Axis(tickMinStep=1)),
-                color=alt.value('#58a6ff')
-            ).interactive()
-            st.altair_chart(chart1, use_container_width=True)
+            if not df.empty:
+                dept_counts = df['department'].value_counts().reset_index()
+                dept_counts.columns = ['department', 'count']
+                chart1 = alt.Chart(dept_counts).mark_bar().encode(
+                    x=alt.X('department', title=None),
+                    y=alt.Y('count', axis=alt.Axis(tickMinStep=1)),
+                    color=alt.value('#58a6ff')
+                ).interactive()
+                st.altair_chart(chart1, use_container_width=True)
             
         with g2:
             st.caption("Incidents by Urgency")
-            urg_counts = df['urgency'].value_counts().reset_index()
-            urg_counts.columns = ['urgency', 'count']
-            domain = ["Low", "Medium", "High", "Critical"]
-            range_ = ["#238636", "#d29922", "#f85149", "#da3633"] 
-            chart2 = alt.Chart(urg_counts).mark_bar().encode(
-                x=alt.X('urgency', sort=domain, title=None),
-                y=alt.Y('count', axis=alt.Axis(tickMinStep=1)),
-                color=alt.Color('urgency', scale=alt.Scale(domain=domain, range=range_), legend=None)
-            ).interactive()
-            st.altair_chart(chart2, use_container_width=True)
+            if not df.empty:
+                urg_counts = df['urgency'].value_counts().reset_index()
+                urg_counts.columns = ['urgency', 'count']
+                domain = ["Low", "Medium", "High", "Critical"]
+                range_ = ["#238636", "#d29922", "#f85149", "#da3633"] 
+                chart2 = alt.Chart(urg_counts).mark_bar().encode(
+                    x=alt.X('urgency', sort=domain, title=None),
+                    y=alt.Y('count', axis=alt.Axis(tickMinStep=1)),
+                    color=alt.Color('urgency', scale=alt.Scale(domain=domain, range=range_), legend=None)
+                ).interactive()
+                st.altair_chart(chart2, use_container_width=True)
 
 
-    # --- TAB 2: WORKSPACE (Resolve/Transfer) ---
+    # --- TAB 2: WORKSPACE ---
     with tab_work:
         st.markdown("#### 🔨 My Active Tickets")
         my_tickets = df[df['status'] == 'In Progress']
@@ -150,6 +152,53 @@ def render_admin_dashboard():
         else:
             st.info("No active tickets. Claim one from the Queue!")
 
-    # --- TAB 3: DATABASE ---
+    # --- TAB 3: RESOLVED HISTORY (NEW FEATURE) ---
+    with tab_history:
+        st.markdown("#### 🗄️ Resolution Archives")
+        resolved_tickets = df[df['status'] == 'Resolved']
+
+        if not resolved_tickets.empty:
+            col_sel, col_view = st.columns([1, 2])
+            
+            with col_sel:
+                selected_resolved = st.selectbox(
+                    "Select Resolved Ticket:",
+                    resolved_tickets['ticket_id'].unique(),
+                    format_func=lambda x: f"{x} - {resolved_tickets[resolved_tickets['ticket_id']==x]['summary'].values[0]}"
+                )
+            
+            with col_view:
+                if selected_resolved:
+                    row = resolved_tickets[resolved_tickets['ticket_id'] == selected_resolved].iloc[0]
+                    
+                    st.markdown(f"""
+                    <div class="metric-card">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <h3 style="color: #2ea043; margin:0;">✔ {row['ticket_id']}</h3>
+                            <span style="background:#2ea043; color:black; padding:2px 8px; border-radius:4px; font-weight:bold; font-size:0.8em;">RESOLVED</span>
+                        </div>
+                        <p style="color:#8b949e; font-size:0.9em; margin-top:5px;">📅 {row['timestamp']}</p>
+                        
+                        <hr style="border-color: #30363d;">
+                        
+                        <p style="color: #58a6ff; font-weight:bold; margin-bottom:0;">ISSUE SUMMARY</p>
+                        <p style="margin-top:0;">{row['summary']}</p>
+                        
+                        <p style="color: #58a6ff; font-weight:bold; margin-bottom:0;">DEPARTMENT</p>
+                        <p style="margin-top:0;">{row['department']}</p>
+                        
+                        <p style="color: #58a6ff; font-weight:bold; margin-bottom:0;">AI DIAGNOSIS (RCA)</p>
+                        <p style="margin-top:0;">{row['rca_hypothesis']}</p>
+                        
+                        <div style="background-color: #0d1117; padding: 10px; border-left: 3px solid #2ea043; border-radius: 4px; margin-top:10px;">
+                            <p style="color: #8b949e; font-size: 0.8em; margin:0;">RESOLUTION / RESPONSE SENT:</p>
+                            <p style="margin:5px 0 0 0; font-style:italic;">"{row['response']}"</p>
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+        else:
+            st.info("No tickets have been resolved yet.")
+
+    # --- TAB 4: DATABASE ---
     with tab_db:
         st.dataframe(df, use_container_width=True)
